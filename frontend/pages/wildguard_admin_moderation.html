@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WildGuard - Admin Moderation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../wg-responsive.css">
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, sans-serif;
+      background: #f4f6f4;
+      color: #1a2b1a;
+    }
+    nav {
+      background: #2d4a2d;
+      color: white;
+      padding: 16px 28px;
+      font-weight: 800;
+    }
+    main {
+      max-width: 1100px;
+      margin: 35px auto;
+      padding: 0 20px;
+    }
+    h1 { font-size: 25px; }
+    .subtitle { color: #6b7b6b; margin-bottom: 25px; }
+    .summary {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .stat, .report {
+      background: white;
+      border: 1px solid #dde8dd;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .stat { min-width: 170px; }
+    .stat strong { display: block; font-size: 28px; }
+    .report { margin-bottom: 15px; }
+    .report h3 { margin-top: 0; }
+    .details {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      font-size: 13px;
+      margin: 15px 0;
+    }
+    .actions { display: flex; gap: 10px; }
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 18px;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .approve { background: #16803c; }
+    .reject { background: #dc2626; }
+    .refresh { background: #2d4a2d; }
+    #message {
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 7px;
+      display: none;
+      background: #eef5ee;
+    }
+    .empty { padding: 30px; text-align: center; color: #6b7b6b; }
+    @media(max-width:600px) {
+      .summary { flex-wrap: wrap; }
+      .details { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<nav>WildGuard | Administrator Panel</nav>
+
+<main>
+  <h1>Incident Moderation</h1>
+  <p class="subtitle">Review submitted wildlife incident reports.</p>
+
+  <div class="summary">
+    <div class="stat">
+      <strong id="pendingCount">0</strong>
+      Pending Reports
+    </div>
+  </div>
+
+  <button class="refresh" onclick="loadPendingReports()">Refresh Reports</button>
+
+  <div id="message"></div>
+  <div id="reportsContainer">
+    <p class="empty">Loading reports...</p>
+  </div>
+</main>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:8000";
+
+function getSession() {
+  try {
+    return JSON.parse(localStorage.getItem("wg_user") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function showMessage(message) {
+  const box = document.getElementById("message");
+  box.textContent = message;
+  box.style.display = "block";
+}
+
+function addDetail(container, label, value) {
+  const item = document.createElement("div");
+  item.textContent = `${label}: ${value ?? "Not available"}`;
+  container.appendChild(item);
+}
+
+async function loadPendingReports() {
+  const user = getSession();
+
+  if (!user || !user.loggedIn || !user.token) {
+    location.href = "wildguard_login_html_.html";
+    return;
+  }
+
+  if (user.role !== "admin") {
+    document.getElementById("reportsContainer").textContent =
+      "Administrator access required.";
+    return;
+  }
+
+  const container = document.getElementById("reportsContainer");
+  container.textContent = "Loading reports...";
+
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/admin/reports`,
+      {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      }
+    );
+
+    if (response.status === 401) {
+      localStorage.removeItem("wg_user");
+      location.href = "wildguard_login_html_.html";
+      return;
+    }
+
+    if (response.status === 403) {
+      throw new Error("Your account does not have administrator permission.");
+    }
+
+    if (!response.ok) {
+      throw new Error("Unable to retrieve pending reports.");
+    }
+
+    const reports = await response.json();
+
+    document.getElementById("pendingCount").textContent =
+      reports.length;
+
+    container.replaceChildren();
+
+    if (!reports.length) {
+      container.textContent = "No pending reports to review.";
+      container.className = "empty";
+      return;
+    }
+
+    container.className = "";
+
+    reports.forEach(report => {
+      const card = document.createElement("section");
+      card.className = "report";
+
+      const heading = document.createElement("h3");
+      heading.textContent = `${report.species || "Unknown"} — Report #${report.id}`;
+      card.appendChild(heading);
+
+      const details = document.createElement("div");
+      details.className = "details";
+
+      addDetail(details, "Reported by", report.reported_by);
+      addDetail(details, "Confidence",
+        report.confidence != null
+          ? `${(Number(report.confidence) * 100).toFixed(1)}%`
+          : "Not available"
+      );
+      addDetail(details, "Location",
+        report.lat != null && report.lon != null
+          ? `${report.lat}, ${report.lon}`
+          : "Not available"
+      );
+      addDetail(details, "Risk", report.risk_level);
+      addDetail(details, "Region", report.region);
+      addDetail(details, "Status", report.status);
+      addDetail(details, "Date", report.created_at);
+
+      card.appendChild(details);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const approve = document.createElement("button");
+      approve.className = "approve";
+      approve.textContent = "Approve";
+
+      const reject = document.createElement("button");
+      reject.className = "reject";
+      reject.textContent = "Reject";
+
+      approve.onclick = () =>
+        reviewReport(report.id, "approved", approve, reject);
+
+      reject.onclick = () =>
+        reviewReport(report.id, "rejected", approve, reject);
+
+      actions.append(approve, reject);
+      card.appendChild(actions);
+      container.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error(error);
+    container.textContent = error.message;
+    showMessage(error.message);
+  }
+}
+
+async function reviewReport(id, status, approveButton, rejectButton) {
+  const user = getSession();
+
+  if (!user || !user.token || user.role !== "admin") {
+    showMessage("Administrator login required.");
+    return;
+  }
+
+  approveButton.disabled = true;
+  rejectButton.disabled = true;
+
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/admin/reports/${id}/review?status=${status}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Unable to review report.");
+    }
+
+    showMessage(`Report #${id} successfully ${status}.`);
+    await loadPendingReports();
+
+  } catch (error) {
+    approveButton.disabled = false;
+    rejectButton.disabled = false;
+    showMessage(error.message);
+  }
+}
+
+loadPendingReports();
+</script>
+</body>
+</html>

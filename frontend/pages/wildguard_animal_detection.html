@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WildGuard — Animal Detection</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --forest:        #2D4A2D;
+  --forest-dark:   #1E331E;
+  --forest-light:  #3A5C3A;
+  --sage:          #6B8F6B;
+  --sage-light:    #A8C5A0;
+  --sage-pale:     #EBF2E8;
+  --sage-mid:      #C8DFBF;
+  --cream:         #F2F5F0;
+  --white:         #FFFFFF;
+  --text-primary:  #1A2E1A;
+  --text-secondary:#3D5C3D;
+  --text-muted:    #6B876B;
+  --border:        #D0E0CB;
+  --border-light:  #E4EEE1;
+  --high:          #B03A2E;
+  --high-bg:       #FDF0EE;
+  --high-border:   #F1A9A0;
+  --medium:        #C07A10;
+  --medium-bg:     #FEF8EC;
+  --low:           #1E7A40;
+  --low-bg:        #EDFAF3;
+  --shadow-sm:     0 1px 3px rgba(45,74,45,0.07), 0 1px 2px rgba(45,74,45,0.04);
+  --shadow-md:     0 4px 14px rgba(45,74,45,0.10);
+  --radius:        10px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--cream);
+  line-height: 1.5;
+}
+
+/* ── NAV (wg standard) ── */
+.wg-nav {
+  background: #2D4A2D; padding: 0 28px; display: flex; align-items: center; gap: 28px;
+  height: 52px; position: sticky; top: 0; z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,.28); flex-shrink: 0; width: 100%; box-sizing: border-box;
+}
+.wg-nav-brand { font-weight: 700; font-size: 17px; color: #fff; letter-spacing: .4px; white-space: nowrap; text-decoration: none; font-family: 'Inter', sans-serif; }
+.wg-nav-links { display: flex; gap: 2px; flex: 1; list-style: none; align-items: center; margin: 0; padding: 0; }
+.wg-nav-links a { color: rgba(255,255,255,.7); text-decoration: none; font-size: 13.5px; font-weight: 500; font-family: 'Inter', sans-serif; padding: 6px 11px; border-radius: 5px; transition: background .15s, color .15s; white-space: nowrap; display: inline-flex; align-items: center; }
+.wg-nav-links a:hover { background: rgba(255,255,255,.12); color: #fff; }
+.wg-nav-links a.wg-active { color: #fff; font-weight: 600; border-bottom: 2px solid #C8DCC8; border-radius: 0; padding-bottom: 4px; }
+.wg-nav-right { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
+.wg-nav-bell { position: relative; color: rgba(255,255,255,.8); cursor: pointer; line-height: 0; background: none; border: none; padding: 4px; transition: color .15s; display: flex; align-items: center; }
+.wg-nav-bell:hover { color: #fff; }
+.wg-nav-bell svg { width: 19px; height: 19px; display: block; }
+.wg-nav-badge { position: absolute; top: 0; right: 0; background: #EF4444; color: #fff; font-size: 9px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; border: 1.5px solid #2D4A2D; line-height: 1; }
+.wg-nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: #8FAF8F; border: 2px solid #1a2e1a; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; font-family: 'Inter', sans-serif; color: #1a2e1a; flex-shrink: 0; }
+
+/* ── PAGE LAYOUT ── */
+.page-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1280px; margin: 0 auto; padding: 28px 24px; min-height: calc(100vh - 52px - 56px); align-items: start; }
+.card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+.left-col, .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+.section-title { font-size: 20px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
+.section-sub { font-size: 13.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.55; }
+
+/* ── DROPZONE ── */
+.dropzone-card { border: 2px dashed var(--sage-mid); border-radius: var(--radius); background: var(--sage-pale); padding: 40px 24px 32px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+.dropzone-card:hover, .dropzone-card.dragover { border-color: var(--forest); background: #E2EFD8; }
+.dropzone-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.dz-icon { width: 52px; height: 52px; background: #D4E8CC; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.dz-icon svg { width: 26px; height: 26px; color: var(--forest); }
+.dz-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 5px; }
+.dz-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; }
+.btn-dz { background: var(--forest); color: #fff; border: none; border-radius: 7px; padding: 8px 22px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.18s; display: inline-flex; align-items: center; gap: 7px; position: relative; z-index: 1; }
+.btn-dz:hover { background: var(--forest-light); }
+.btn-dz svg { width: 14px; height: 14px; }
+
+/* ── PREVIEW ── */
+.preview-card { border-radius: var(--radius); border: 1px solid var(--border); background: var(--white); overflow: hidden; box-shadow: var(--shadow-sm); display: none; }
+.preview-card.show { display: block; }
+.preview-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-light); }
+.preview-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 7px; }
+.preview-img-wrap { position: relative; width: 100%; background: #101a10; line-height: 0; max-height: 320px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.preview-img-wrap img { width: 100%; max-height: 320px; object-fit: contain; display: block; }
+.preview-footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; border-top: 1px solid var(--border-light); }
+.preview-meta { font-size: 12px; color: var(--text-muted); }
+
+/* ── DETECTING OVERLAY ── */
+.detecting-overlay { display: none; position: absolute; inset: 0; background: rgba(10,20,10,0.72); align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 10; }
+.detecting-overlay.show { display: flex; }
+.detecting-spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.25); border-top-color: #80EF90; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.detecting-text { color: rgba(255,255,255,0.88); font-size: 13.5px; font-weight: 500; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RUN BUTTON ── */
+.btn-run { width: 100%; background: var(--forest); color: #fff; border: none; border-radius: 8px; padding: 13px 20px; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background 0.18s; box-shadow: 0 2px 8px rgba(45,74,45,0.22); }
+.btn-run:hover:not(:disabled) { background: var(--forest-light); }
+.btn-run:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-run svg { width: 17px; height: 17px; }
+.btn-run .spinner { display: none; width: 17px; height: 17px; border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.btn-run.loading .spinner { display: block; }
+.btn-run.loading .run-text, .btn-run.loading .run-icon { display: none; }
+
+/* ── RESULTS ── */
+.results-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.results-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.results-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
+
+.results-body { display: none; flex-direction: column; gap: 16px; }
+.results-body.show { display: flex; }
+
+.species-card { padding: 18px 20px; }
+.species-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.species-left { display: flex; align-items: center; gap: 12px; }
+.species-icon-wrap { width: 40px; height: 40px; background: var(--sage-pale); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.species-name { font-size: 20px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
+.engine-badge { display: inline-block; background: var(--sage-pale); color: var(--sage); font-size: 10px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-top: 3px; border: 1px solid var(--sage-mid); }
+.confidence-val { font-size: 34px; font-weight: 700; color: var(--text-primary); letter-spacing: -1px; line-height: 1; text-align: right; }
+.confidence-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); text-align: right; margin-top: 2px; }
+.conf-bar-track { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.conf-bar-fill { height: 100%; background: linear-gradient(90deg, var(--forest) 0%, var(--sage) 100%); border-radius: 4px; transition: width 1s ease; width: 0%; }
+
+.risk-card { border-radius: var(--radius); border: 1.5px solid var(--border); padding: 14px 18px; display: none; }
+.risk-card.show { display: block; }
+.risk-card.HIGH { border-color: var(--high-border); background: var(--high-bg); }
+.risk-card.MEDIUM { border-color: #F0D9A8; background: var(--medium-bg); }
+.risk-card.LOW { border-color: #A7E0BE; background: var(--low-bg); }
+.risk-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.risk-title-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; letter-spacing: 0.3px; }
+.risk-card.HIGH .risk-title-row { color: var(--high); }
+.risk-card.MEDIUM .risk-title-row { color: var(--medium); }
+.risk-card.LOW .risk-title-row { color: var(--low); }
+.risk-sub { font-size: 12.5px; color: var(--text-secondary); }
+.risk-note { margin-top: 10px; font-size: 11.5px; color: var(--text-muted); }
+
+.location-note { font-size: 12.5px; color: var(--text-muted); background: var(--sage-pale); border: 1px solid var(--sage-mid); border-radius: 8px; padding: 10px 12px; display: none; }
+.location-note.show { display: block; }
+
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.meta-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--white); }
+.meta-item-label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
+.meta-item-value { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-top: 1px; }
+
+.action-stack { display: flex; flex-direction: column; gap: 10px; }
+.btn-action-secondary { width: 100%; background: var(--white); color: var(--text-secondary); border: 1.5px solid var(--border); border-radius: 8px; padding: 11px 18px; font-size: 13.5px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: all 0.18s; }
+.btn-action-secondary:hover { background: var(--sage-pale); border-color: var(--sage); color: var(--forest); }
+.btn-action-secondary svg { width: 15px; height: 15px; }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--forest); color: #fff; padding: 11px 18px; border-radius: 9px; font-size: 13.5px; font-weight: 500; box-shadow: 0 4px 18px rgba(0,0,0,0.18); display: none; align-items: center; gap: 9px; z-index: 9999; max-width: 320px; }
+.toast.show { display: flex; animation: slideUp 0.25s ease; }
+@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.toast svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ── FOOTER (wg standard) ── */
+.wg-footer { background: #ffffff; border-top: 1px solid #D0DDD0; color: #6B7B6B; font-size: 12px; font-family: 'Inter', sans-serif; padding: 11px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
+.wg-footer strong { color: #1A2B1A; }
+.wg-footer-links { display: flex; gap: 16px; }
+.wg-footer-links a { color: #6B7B6B; text-decoration: none; transition: color .15s; }
+.wg-footer-links a:hover { color: #2D4A2D; }
+
+@media (max-width: 860px) { .page-wrap { grid-template-columns: 1fr; } }
+</style>
+<link rel="stylesheet" href="../wg-responsive.css">
+<script src="../wg-notifications.js"></script>
+</head>
+<body>
+
+<nav class="wg-nav">
+  <a class="wg-nav-brand" href="../index.html">WildGuard</a>
+  <ul class="wg-nav-links">
+    <li><a href="../index.html">Dashboard</a></li>
+    <li><a href="wildguard_risk_map_html.html">Risk Map</a></li>
+    <li><a href="wildguard_animal_detection.html" class="wg-active">Detection</a></li>
+    <li><a href="wildguard_risk_assessment_html_.html">Risk Assessment</a></li>
+    <li><a href="wildguard_analytics_html_.html">Analytics</a></li>
+    <li><a href="wildguard_live_reports.html">Live Reports</a></li>
+    <li><a href="wildguard_login_html_.html" class="wg-login-link">Login / Register</a></li>
+  </ul>
+  <div class="wg-nav-right">
+    <button class="wg-nav-toggle" onclick="document.getElementById('wgMobilePanel').classList.toggle('open')" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <button class="wg-nav-bell" onclick="location.href='wildguard_notifications.html'" title="Notifications">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+      <span class="wg-nav-badge" style="display:none">0</span>
+    </button>
+    <div class="wg-nav-avatar" onclick="location.href='wildguard_profile_html_.html'">SJ</div>
+  </div>
+</nav>
+
+<div class="wg-nav-mobile-panel" id="wgMobilePanel">
+  <a href="../index.html">Dashboard</a>
+  <a href="wildguard_risk_map_html.html">Risk Map</a>
+  <a href="wildguard_animal_detection.html" class="wg-active">Detection</a>
+  <a href="wildguard_risk_assessment_html_.html">Risk Assessment</a>
+  <a href="wildguard_analytics_html_.html">Analytics</a>
+  <a href="wildguard_live_reports.html">Live Reports</a>
+  <a href="wildguard_login_html_.html" class="wg-login-link">Login / Register</a>
+</div>
+
+<div class="page-wrap">
+
+  <!-- LEFT COLUMN -->
+  <div class="left-col">
+    <div>
+      <div class="section-title">Animal detection</div>
+      <div class="section-sub">Upload a photo — YOLO identifies the species and, if you allow location, checks it against the risk model.</div>
+    </div>
+
+    <div class="dropzone-card" id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp" onchange="handleFileSelect(event)">
+      <div class="dz-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="dz-title">Drag and drop your image here</div>
+      <div class="dz-sub">Supports JPG, PNG, WEBP</div>
+      <button class="btn-dz" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M10 7v6M7 10h6"/></svg>
+        Browse files
+      </button>
+    </div>
+
+    <div class="preview-card" id="previewCard">
+      <div class="preview-header">
+        <span class="preview-label">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M7 3v14M13 3v14"/></svg>
+          Selected image
+        </span>
+      </div>
+      <div class="preview-img-wrap">
+        <img id="previewImg" src="" alt="Selected animal photo">
+        <div class="detecting-overlay" id="detectingOverlay">
+          <div class="detecting-spinner"></div>
+          <div class="detecting-text" id="detectingText">Running YOLO inference…</div>
+        </div>
+      </div>
+      <div class="preview-footer">
+        <span class="preview-meta" id="fileMeta"></span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:5px;">Reporter name</label>
+        <input type="text" id="reporterName" placeholder="Your name" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13.5px;font-family:'Inter',sans-serif;color:var(--text-primary);outline:none;">
+      </div>
+      
+<div>
+  <label style="font-size:12.5px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:7px;">
+    Location mode
+  </label>
+
+  <select id="locationMode" onchange="changeLocationMode()"
+    style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+    <option value="gps">Automatic GPS (Actual location)</option>
+    <option value="manual">Manual demonstration location</option>
+  </select>
+</div>
+
+<div id="manualLocationSection" style="display:none;">
+  <label style="font-size:12.5px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:7px;">
+    Select demonstration region
+  </label>
+
+  <select id="demoRegion" onchange="updateManualLocation()"
+    style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+    <option value="canada">Canada</option>
+    <option value="chitwan">Chitwan, Nepal</option>
+  </select>
+</div>
+
+<div>
+  <label style="font-size:12.5px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:5px;">
+    Selected coordinates
+  </label>
+  <div id="locationDisplay"
+    style="font-size:13px;color:var(--text-muted);padding:9px 12px;background:var(--sage-pale);border-radius:7px;border:1px solid var(--sage-mid);">
+    Waiting for browser location…
+  </div>
+</div>
+
+    </div>
+
+    <button class="btn-run" id="runBtn" onclick="runDetection()" disabled>
+      <div class="spinner"></div>
+      <svg class="run-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="3"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3M3.5 3.5l2 2M14.5 14.5l2 2M14.5 3.5l-2 2M3.5 16.5l2-2"/></svg>
+      <span class="run-text">Run detection</span>
+    </button>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+    <div class="results-header">
+      <div>
+        <div class="results-title">Detection results</div>
+        <div class="results-sub" id="resultsSub">Upload a photo to begin</div>
+      </div>
+    </div>
+
+    <div class="card" id="emptyState">
+      <div class="empty-state">No detection run yet. Choose a photo on the left and click "Run detection."</div>
+    </div>
+
+    <div class="results-body" id="resultsBody">
+      <div class="card species-card">
+        <div class="species-top">
+          <div class="species-left">
+            <div class="species-icon-wrap" id="speciesIcon">🐾</div>
+            <div>
+              <div class="species-name" id="speciesName">—</div>
+              <div class="engine-badge">YOLO Engine</div>
+            </div>
+          </div>
+          <div>
+            <div class="confidence-val" id="confVal">—</div>
+            <div class="confidence-label">Confidence</div>
+          </div>
+        </div>
+        <div class="conf-bar-track"><div class="conf-bar-fill" id="confBar"></div></div>
+      </div>
+
+      <div class="location-note" id="locationNote">Allow location access to check this detection against the risk model.</div>
+
+      <div class="risk-card" id="riskCard">
+        <div class="risk-header">
+          <div class="risk-title-row">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 3L18 17H2L10 3z"/><path d="M10 9v4"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg>
+            <span id="riskLabel">—</span>
+          </div>
+          <span id="riskProb" style="font-size:12px;font-weight:600;"></span>
+        </div>
+        <div class="risk-sub" id="riskSub"></div>
+        <div class="risk-note">Based on the precomputed Parks Canada risk grid — Canada region only for now.</div>
+      </div>
+
+      <div class="meta-grid" id="hotspotGrid" style="display:none">
+        <div class="meta-item"><div class="meta-item-label">Nearest Hotspot</div><div class="meta-item-value" id="hotspotName">—</div></div>
+        <div class="meta-item"><div class="meta-item-label">Distance</div><div class="meta-item-value" id="hotspotDist">—</div></div>
+        <div class="meta-item"><div class="meta-item-label">Peak Month</div><div class="meta-item-value" id="hotspotMonth">—</div></div>
+        <div class="meta-item"><div class="meta-item-label">Priority</div><div class="meta-item-value" id="hotspotPriority">—</div></div>
+      </div>
+
+      <div class="action-stack">
+        <button
+  class="btn-action-secondary"
+  id="submitIncidentBtn"
+  onclick="submitDetectionReport()">
+  Submit Incident Report
+</button>
+        <button class="btn-action-secondary" onclick="downloadReport()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 17h12"/></svg>
+          Download detection report
+        </button>
+        <button class="btn-action-secondary" onclick="location.href='wildguard_risk_map_html.html'">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M6 3v14M14 3v14M2 10h16"/></svg>
+          View on risk map
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toastEl" role="status" aria-live="polite">
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<div class="wg-footer">
+  <span><strong>WildGuard</strong> | &copy; 2024 WildGuard Stewardship through Data. All rights reserved.</span>
+  <div class="wg-footer-links">
+    <a href="wildguard_privacy_policy.html">Privacy Policy</a>
+    <a href="wildguard_terms_of_service.html">Terms of Service</a>
+    <a href="wildguard_field_protocol.html">Field Protocol</a>
+  </div>
+</div>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:8000";
+
+// Emoji per species — extend as YOLO's class list grows.
+const SPECIES_ICONS = {
+  bear: "🐻", "black bear": "🐻", "grizzly bear": "🐻", elephant: "🐘",
+  tiger: "🐅", leopard: "🐆", rhinoceros: "🦏", rhino: "🦏",
+  "wild boar": "🐗", nilgai: "🐂", wolf: "🐺", cougar: "🐆", elk: "🦌", moose: "🫎"
+};
+
+let selectedFile = null;
+let userCoords = null;
+let actualGpsCoords = null;
+let locationSource = "GPS";
+let lastResult = null;
+
+const DEMO_LOCATIONS = {
+  canada: { lat: 50.0000, lon: -100.0000, label: "Canada" },
+  chitwan: { lat: 27.4833, lon: 84.3874, label: "Chitwan, Nepal" }
+};
+
+function displayLocation(coords, label) {
+  document.getElementById('locationDisplay').textContent =
+    `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)} (${label})`;
+}
+
+function changeLocationMode() {
+  const mode = document.getElementById('locationMode').value;
+
+  document.getElementById('manualLocationSection').style.display =
+    mode === 'manual' ? 'block' : 'none';
+
+  if (mode === 'manual') {
+    updateManualLocation();
+  } else {
+    locationSource = "GPS";
+    userCoords = actualGpsCoords;
+
+    if (userCoords) {
+      displayLocation(userCoords, "Actual GPS location");
+    } else {
+      document.getElementById('locationDisplay').textContent =
+        "GPS unavailable. Select manual demonstration mode.";
+    }
+  }
+}
+
+function updateManualLocation() {
+  const region = document.getElementById('demoRegion').value;
+  const selected = DEMO_LOCATIONS[region];
+
+  userCoords = { lat: selected.lat, lon: selected.lon };
+  locationSource = "Manual demonstration - " + selected.label;
+
+  displayLocation(userCoords, locationSource);
+}
+
+(function initReporterAndLocation() {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('wg_user') || 'null');
+  } catch (e) {}
+
+  if (user && user.name) {
+    document.getElementById('reporterName').value = user.name;
+  }
+
+  if (!navigator.geolocation) {
+    document.getElementById('locationDisplay').textContent =
+      'GPS not supported. Use manual demonstration mode.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      actualGpsCoords = {
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude
+      };
+
+      if (document.getElementById('locationMode').value === 'gps') {
+        userCoords = actualGpsCoords;
+        displayLocation(userCoords, "Actual GPS location");
+      }
+    },
+    () => {
+      document.getElementById('locationDisplay').textContent =
+        'GPS access denied. You can use manual demonstration mode.';
+    }
+  );
+})();
+
+const dz = document.getElementById('dropzone');
+function handleDragOver(e) { e.preventDefault(); dz.classList.add('dragover'); }
+function handleDragLeave() { dz.classList.remove('dragover'); }
+function handleDrop(e) {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+}
+function handleFileSelect(e) { if (e.target.files[0]) handleFile(e.target.files[0]); }
+
+function handleFile(file) {
+  if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+    showToast('Unsupported format. Use JPG, PNG, or WEBP.', true);
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('previewImg').src = URL.createObjectURL(file);
+  document.getElementById('previewCard').classList.add('show');
+  document.getElementById('fileMeta').textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)}MB`;
+  document.getElementById('runBtn').disabled = false;
+}
+
+async function runDetection() {
+  if (!selectedFile) return;
+
+  if (document.getElementById('locationMode').value === 'manual') {
+    updateManualLocation();
+  } else {
+    userCoords = actualGpsCoords;
+    locationSource = "GPS";
+  }
+
+  const btn = document.getElementById('runBtn');
+  const overlay = document.getElementById('detectingOverlay');
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  overlay.classList.add('show');
+
+  document.getElementById('detectingText').textContent = 'Running YOLO inference…';
+  document.getElementById('riskCard').className = 'risk-card';
+  document.getElementById('hotspotGrid').style.display = 'none';
+  document.getElementById('locationNote').classList.remove('show');
+
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('wg_user') || 'null');
+  } catch (e) {}
+
+  try {
+    const form = new FormData();
+    form.append('file', selectedFile);
+
+    const nameInput = document.getElementById('reporterName').value.trim();
+    const reportedBy = encodeURIComponent(nameInput || (user && user.email) || 'anonymous');
+
+    
+const locParams = userCoords
+  ? `&lat=${userCoords.lat}&lon=${userCoords.lon}`
+  : '';
+
+const sourceParams = `&location_source=${encodeURIComponent(locationSource)}`;
+
+
+    
+const res = await fetch(
+  `${BACKEND_URL}/api/detect-animal?reported_by=${reportedBy}${locParams}${sourceParams}`,
+  { method: 'POST', body: form }
+);
+
+
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+    const data = await res.json();
+    renderSpecies(data);
+
+    let riskData = null;
+
+    if (userCoords) {
+      document.getElementById('detectingText').textContent = 'Checking risk model…';
+
+      const riskRes = await fetch(
+        `${BACKEND_URL}/api/predict-risk?lat=${userCoords.lat}&lon=${userCoords.lon}&species=${encodeURIComponent(data.species)}`
+      );
+
+      if (!riskRes.ok) throw new Error('Risk lookup failed');
+
+      riskData = await riskRes.json();
+      renderRisk(riskData);
+    } else {
+      document.getElementById('locationNote').textContent =
+        'GPS unavailable. Detection completed without risk assessment.';
+      document.getElementById('locationNote').classList.add('show');
+    }
+
+    lastResult = {
+  ...data,
+  image_path: data.image_path,
+  coords: userCoords,
+  locationSource: locationSource,
+  risk: riskData,
+  reportSubmitted: false
+};
+
+const submitBtn = document.getElementById('submitIncidentBtn');
+submitBtn.disabled = false;
+submitBtn.textContent = 'Submit Incident Report';
+
+    showToast(`Detected: ${data.species} (${(data.confidence * 100).toFixed(1)}%)`);
+
+  } catch (err) {
+    console.error(err);
+    showToast('Detection failed. Check the backend.', true);
+  } finally {
+    overlay.classList.remove('show');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function renderSpecies(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsBody').classList.add('show');
+  document.getElementById('resultsSub').textContent = 'Live YOLO result';
+
+  const conf = (data.confidence * 100).toFixed(1);
+  document.getElementById('speciesIcon').textContent = SPECIES_ICONS[data.species.toLowerCase()] || '🐾';
+  document.getElementById('speciesName').textContent = data.species;
+  document.getElementById('confVal').textContent = conf + '%';
+  requestAnimationFrame(() => { document.getElementById('confBar').style.width = conf + '%'; });
+}
+
+function renderRisk(risk) {
+  const card = document.getElementById('riskCard');
+
+  if (risk.region === 'unsupported' || risk.risk_level === 'NOT_AVAILABLE') {
+    card.className = 'risk-card show';
+    document.getElementById('riskLabel').textContent = 'RISK DATA UNAVAILABLE';
+    document.getElementById('riskProb').textContent = '';
+    document.getElementById('riskSub').textContent =
+      'Animal detected successfully. Risk assessment is not available for this location because the current datasets do not cover this region.';
+    document.querySelector('#riskCard .risk-note').textContent =
+      'A regional wildlife-conflict dataset is required to calculate a reliable risk estimate.';
+
+    document.getElementById('hotspotGrid').style.display = 'none';
+    return;
+  }
+
+  card.className = 'risk-card show ' + risk.risk_level;
+  document.getElementById('riskLabel').textContent = risk.risk_level + ' RISK';
+  document.getElementById('riskProb').textContent =
+    risk.high_risk_prob != null ? (risk.high_risk_prob * 100).toFixed(0) + '% probability' : '';
+  document.getElementById('riskSub').textContent =
+    `Nearest tracked hotspot activity: ${risk.hotspot_species} ? ${risk.nearest_hotspot}.`;
+  document.querySelector('#riskCard .risk-note').textContent =
+    risk.region === 'canada'
+      ? 'Based on the precomputed Parks Canada risk grid.'
+      : 'Based on Chitwan DBSCAN conflict clusters ? no probability grid for this region yet.';
+
+  document.getElementById('hotspotGrid').style.display = 'grid';
+  document.getElementById('hotspotName').textContent = risk.nearest_hotspot;
+  document.getElementById('hotspotDist').textContent = risk.hotspot_distance_km + ' km';
+  document.getElementById('hotspotMonth').textContent = risk.hotspot_peak_month != null
+    ? ['?','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][risk.hotspot_peak_month]
+    : 'N/A';
+  document.getElementById('hotspotPriority').textContent = risk.hotspot_priority;
+}
+
+async function submitDetectionReport() {
+  if (!lastResult) {
+    showToast('Run animal detection first.', true);
+    return;
+  }
+
+  let user = null;
+
+  try {
+    user = JSON.parse(localStorage.getItem('wg_user') || 'null');
+  } catch (e) {}
+
+  if (!user || !user.loggedIn || !user.token) {
+    showToast('Please log in to submit an incident report.', true);
+    return;
+  }
+
+  if (lastResult.reportSubmitted) {
+    showToast('This detection has already been submitted.');
+    return;
+  }
+
+  if (!lastResult.image_path) {
+    showToast('Detection image is missing. Please run detection again.', true);
+    return;
+  }
+
+  const button = document.getElementById('submitIncidentBtn');
+  button.disabled = true;
+  button.textContent = 'Submitting...';
+
+  try {
+    const payload = {
+      image_path: lastResult.image_path,
+      species: lastResult.species,
+      confidence: lastResult.confidence,
+      lat: lastResult.coords ? lastResult.coords.lat : null,
+      lon: lastResult.coords ? lastResult.coords.lon : null,
+      location_source: lastResult.locationSource || 'GPS'
+    };
+
+    const res = await fetch(`${BACKEND_URL}/api/reports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user.token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 401) {
+      throw new Error('Your session has expired. Please log in again.');
+    }
+
+    if (res.status === 403) {
+      throw new Error('You do not have permission to submit this report.');
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || 'Report submission failed.');
+    }
+
+    lastResult.reportSubmitted = true;
+
+    button.textContent = 'Report Submitted — Pending Review';
+    button.disabled = true;
+
+    showToast('Report submitted successfully. Awaiting admin approval.');
+
+  } catch (error) {
+    console.error('Report submission error:', error);
+
+    button.disabled = false;
+    button.textContent = 'Submit Incident Report';
+
+    showToast(error.message || 'Could not submit report.', true);
+  }
+}
+
+function downloadReport() {
+  if (!lastResult) return;
+
+  const risk = lastResult.risk;
+
+  const lines = [
+    'WILDGUARD DETECTION REPORT',
+    '==========================',
+    `Generated: ${new Date().toLocaleString()}`,
+    `Species: ${lastResult.species}`,
+    `Confidence: ${(lastResult.confidence * 100).toFixed(1)}%`,
+    `Location mode: ${lastResult.locationSource || 'Not specified'}`,
+    lastResult.coords
+      ? `Coordinates: ${lastResult.coords.lat.toFixed(4)}, ${lastResult.coords.lon.toFixed(4)}`
+      : 'Coordinates: not provided',
+    `Risk region: ${risk?.region || 'Not available'}`,
+    `Risk level: ${risk?.risk_level || 'Not assessed'}`,
+    risk?.high_risk_prob != null
+      ? `Risk probability: ${(risk.high_risk_prob * 100).toFixed(1)}%`
+      : 'Risk probability: not available',
+    `Nearest hotspot: ${risk?.nearest_hotspot || 'Not available'}`
+  ].join('\n');
+
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wildguard_detection_report.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+
+let toastTimer;
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toastEl');
+  document.getElementById('toastMsg').textContent = msg;
+  el.style.background = isError ? '#922B21' : 'var(--forest)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// WildGuard nav session state
+function wgUpdateNav() {
+  var user = null;
+  try { user = JSON.parse(localStorage.getItem('wg_user') || 'null'); } catch (e) {}
+  var loggedIn = !!(user && user.loggedIn);
+  document.querySelectorAll('.wg-nav-avatar').forEach(function (av) {
+    if (loggedIn && user.initials) {
+      av.textContent = user.initials;
+      av.style.background = '#8FAF8F'; av.style.color = '#1a2e1a'; av.style.border = '2px solid #1a2e1a';
+      av.title = user.name || '';
+    } else {
+      av.innerHTML = '<svg viewBox="0 0 24 24" fill="#aaa" width="18" height="18"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>';
+      av.style.background = '#d0d0d0'; av.style.border = '2px solid #bbb';
+    }
+  });
+  document.querySelectorAll('.wg-login-link').forEach(function (link) {
+    link.style.display = loggedIn ? 'none' : '';
+  });
+
+  wgUpdateBadge();
+}
+wgUpdateNav();
+window.addEventListener('pageshow', wgUpdateNav);
+</script>
+</body>
+</html>

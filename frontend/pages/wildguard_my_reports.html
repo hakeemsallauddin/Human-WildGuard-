@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Reports | WildGuard</title>
+
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f7f1;
+  color: #203b25;
+}
+nav {
+  background: #2d4a2d;
+  color: white;
+  padding: 17px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+nav strong { font-size: 19px; margin-right: 12px; }
+nav a { color: white; text-decoration: none; font-size: 13px; }
+nav a:hover { text-decoration: underline; }
+.container {
+  max-width: 1050px;
+  margin: 35px auto;
+  padding: 0 18px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+h1 { margin: 0 0 7px; font-size: 25px; }
+.subtitle { color: #71816f; font-size: 13px; }
+button {
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 17px;
+  background: #2d4a2d;
+  color: white;
+  cursor: pointer;
+}
+button:disabled { opacity: .6; cursor: wait; }
+#message {
+  padding: 16px;
+  color: #71816f;
+  text-align: center;
+}
+.report {
+  background: white;
+  border: 1px solid #d6e5d2;
+  border-radius: 11px;
+  padding: 18px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  box-shadow: 0 2px 7px #203b2508;
+}
+.report img {
+  width: 125px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #edf3e9;
+}
+.report-content { flex: 1; min-width: 0; }
+.report-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 9px;
+}
+.details {
+  color: #687a67;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.status {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-top: 9px;
+}
+.pending { background: #fff3d9; color: #a66b00; }
+.approved { background: #e2f5e5; color: #26743a; }
+.rejected { background: #ffe6e4; color: #b52d26; }
+@media(max-width:600px) {
+  .report { flex-direction: column; }
+  .report img { width: 100%; height: 180px; }
+}
+</style>
+</head>
+
+<body>
+
+<nav>
+  <strong>WildGuard</strong>
+  <a href="../index.html">Dashboard</a>
+  <a href="wildguard_animal_detection.html">Detection</a>
+  <a href="wildguard_live_reports.html">Live Reports</a>
+  <a href="wildguard_notifications.html">Notifications</a>
+  <a href="wildguard_profile_html_.html">Profile</a>
+</nav>
+
+<main class="container">
+  <div class="header">
+    <div>
+      <h1>My Reports</h1>
+      <div class="subtitle">Track the status of your submitted wildlife incidents.</div>
+    </div>
+    <button id="refreshBtn" onclick="loadMyReports()">Refresh Reports</button>
+  </div>
+
+  <div id="message">Loading your reports...</div>
+  <div id="reportsList"></div>
+</main>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:8000";
+
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem('wg_user') || 'null');
+  } catch (error) {
+    return null;
+  }
+}
+
+function escapeText(value) {
+  return String(value ?? '');
+}
+
+function formatDate(value) {
+  if (!value) return 'Date unavailable';
+  const date = new Date(
+    String(value).includes('T') ? value : String(value).replace(' ', 'T') + 'Z'
+  );
+  return isNaN(date.getTime()) ? escapeText(value) : date.toLocaleString();
+}
+
+function statusClass(status) {
+  const value = String(status || 'pending').toLowerCase();
+  if (value === 'approved') return 'approved';
+  if (value === 'rejected') return 'rejected';
+  return 'pending';
+}
+
+async function loadMyReports() {
+  const user = getUser();
+  const message = document.getElementById('message');
+  const list = document.getElementById('reportsList');
+  const button = document.getElementById('refreshBtn');
+
+  if (!user || !user.loggedIn || !user.token) {
+    message.textContent = 'Please log in to view your reports.';
+    list.replaceChildren();
+    return;
+  }
+
+  button.disabled = true;
+  message.textContent = 'Loading your reports...';
+  list.replaceChildren();
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/my-reports`, {
+      headers: {
+        'Authorization': `Bearer ${user.token}`
+      }
+    });
+
+    if (response.status === 401) {
+      throw new Error('Your session has expired. Please log in again.');
+    }
+    if (!response.ok) {
+      throw new Error(`Unable to load reports (${response.status}).`);
+    }
+
+    const reports = await response.json();
+
+    if (!Array.isArray(reports) || reports.length === 0) {
+      message.textContent = 'You have not submitted any incident reports yet.';
+      return;
+    }
+
+    message.textContent = `${reports.length} report(s) found.`;
+
+    reports.forEach(report => {
+      const card = document.createElement('article');
+      card.className = 'report';
+
+      if (report.image_path) {
+        const image = document.createElement('img');
+        const imagePath = String(report.image_path)
+          .replace(/\\/g, '/')
+          .replace(/^\/+/, '');
+        image.src = `${BACKEND_URL}/${imagePath}`;
+        image.alt = 'Incident evidence';
+        image.onerror = () => image.remove();
+        card.appendChild(image);
+      }
+
+      const content = document.createElement('div');
+      content.className = 'report-content';
+
+      const title = document.createElement('div');
+      title.className = 'report-title';
+      title.textContent = `${escapeText(report.species || 'Unknown species')} — Report #${escapeText(report.id)}`;
+
+      const details = document.createElement('div');
+      details.className = 'details';
+
+      const confidence = report.confidence == null
+        ? 'Not available'
+        : `${(Number(report.confidence) * 100).toFixed(1)}%`;
+
+      details.textContent =
+        `Confidence: ${confidence} | Risk: ${escapeText(report.risk_level || 'Not available')} | Region: ${escapeText(report.region || 'Not available')} | Location: ${report.lat ?? 'N/A'}, ${report.lon ?? 'N/A'} | Submitted: ${formatDate(report.created_at)}`;
+
+      const status = document.createElement('span');
+      status.className = `status ${statusClass(report.status)}`;
+      status.textContent = String(report.status || 'pending').toUpperCase();
+
+      content.append(title, details, status);
+      card.appendChild(content);
+      list.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error('My Reports error:', error);
+    message.textContent = error.message || 'Could not load your reports.';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+loadMyReports();
+</script>
+
+</body>
+</html>

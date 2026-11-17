@@ -1,0 +1,93 @@
+
+# ==============================
+# Environment files and secrets
+# ==============================
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Allow example environment files
+!.env.example
+!**/.env.example
+
+*.pem
+*.key
+secrets/
+credentials/
+
+# ==============================
+# Python virtual environments
+# ==============================
+.venv/
+venv/
+env/
+ENV/
+
+# ==============================
+# Python cache files
+# ==============================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ==============================
+# Backup files
+# ==============================
+*.backup
+*.bak
+*.old
+*.orig
+*.swp
+*.swo
+*backup*
+*before_loc*
+
+# ==============================
+# Temporary files and logs
+# ==============================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# ==============================
+# Operating system files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# IDE and editor settings
+# ==============================
+.vscode/
+.idea/
+
+# ==============================
+# Node dependencies and builds
+# ==============================
+node_modules/
+dist/
+build/
+
+# ==============================
+# Local database files
+# ==============================
+*.db
+*.sqlite
+*.sqlite3
+
+# ==============================
+# Generated uploaded images
+# ==============================
+backend/uploads/*
+!backend/uploads/.gitkeep
+# Old Git history backup - never upload
+.git-history-backup/
+# Local database files
+/auth
+/auth-wal
